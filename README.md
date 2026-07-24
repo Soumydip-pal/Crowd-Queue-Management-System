@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Real-Time Crowd & Queue Management System
 
 Full-stack crowd and queue management demo using Spring Boot, React, PostgreSQL, and a Python ML service.
@@ -218,3 +219,7 @@ Git repo, not a local folder or zip.
 - To retrain the ML model on real data later, see `ml-service/train_model.py`
   and its `--real-data` flag, then trigger a manual redeploy of
   `crowd-ml-service` (it retrains automatically on every build).
+=======
+# Crowd-Queue-Management-System
+Realtime Crowd and Queue Management System 
+>>>>>>> 4fa3db9bb43d6185154677a649a8472047aea821
