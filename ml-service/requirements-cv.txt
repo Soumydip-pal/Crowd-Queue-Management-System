@@ -1,0 +1,13 @@
+# Optional upgrade path for /ml/detect-crowd.
+#
+# The default implementation in app.py uses OpenCV's built-in HOG+SVM people
+# detector (opencv-python-headless, already in requirements.txt) because it
+# needs no extra model-weight download and works fully offline.
+#
+# For higher accuracy, install these and swap detect_crowd()'s detector for
+# a YOLOv8 person-class model (see the docstring on detect_crowd in app.py).
+# Note: ultralytics downloads pretrained weights from GitHub on first run,
+# so the deployment environment needs outbound internet access to
+# github.com/ultralytics/assets the first time it runs.
+ultralytics
+opencv-python

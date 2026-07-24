@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: crowd-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crowd_management}
+      POSTGRES_USER: ${POSTGRES_USER:-crowd_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crowd_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crowd_user} -d ${POSTGRES_DB:-crowd_management}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: crowd-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ml-service:
+    build:
+      context: ./ml-service
+    container_name: crowd-ml-service
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend-springboot
+    container_name: crowd-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-crowd_management}
+      DB_USERNAME: ${POSTGRES_USER:-crowd_user}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-crowd_password}
+      DB_DRIVER: org.postgresql.Driver
+      DDL_AUTO: update
+      JWT_SECRET: ${JWT_SECRET:-change-this-before-production}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-1440}
+      ML_SERVICE_URL: http://ml-service:5001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./crowd-dashboard
+      args:
+        REACT_APP_API_BASE: ${REACT_APP_API_BASE:-http://localhost:8080/api}
+        REACT_APP_WS_URL: ${REACT_APP_WS_URL:-http://localhost:8080/ws}
+    container_name: crowd-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:

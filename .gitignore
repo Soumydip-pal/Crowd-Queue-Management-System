@@ -1,0 +1,24 @@
+# Java / Spring Boot
+backend-springboot/target/
+*.class
+
+# Node / React
+crowd-dashboard/node_modules/
+crowd-dashboard/build/
+npm-debug.log*
+
+# Python
+ml-service/__pycache__/
+ml-service/*.pyc
+ml-service/venv/
+ml-service/.venv/
+
+# Environment and local tooling
+.env
+*.log
+.idea/
+.vscode/
+
+# OS files
+Thumbs.db
+.DS_Store
