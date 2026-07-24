@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Real-Time Crowd & Queue Management System
 
 Full-stack crowd and queue management demo using Spring Boot, React, PostgreSQL, and a Python ML service.
@@ -126,13 +125,16 @@ python -m py_compile app.py
    tab per service, since all three run simultaneously:
 
    **Terminal 1 - backend:**
+
    ```bash
    cd backend-springboot
    mvn spring-boot:run
    ```
+
    (Or use the Java extension's "Run" CodeLens above `CrowdApplication.java`'s `main` method.)
 
    **Terminal 2 - ML service:**
+
    ```bash
    cd ml-service
    pip install -r requirements.txt --break-system-packages
@@ -141,11 +143,13 @@ python -m py_compile app.py
    ```
 
    **Terminal 3 - frontend:**
+
    ```bash
    cd crowd-dashboard
    npm install
    npm start
    ```
+
 4. Open `http://localhost:3000` in your browser. Login: `admin@example.com` / `admin123`.
 5. Alternatively, skip terminals 1-2 and just run `docker compose up --build`
    from the repo root (needs Docker Desktop) - then only run terminal 3 for
@@ -172,18 +176,18 @@ python -m py_compile app.py
 4. Double-check `.env` was NOT pushed (it's in `.gitignore` already) - only
    `.env.example` should be in the repo.
 
-
-
 This repo includes a `render.yaml` Blueprint that provisions Postgres, Redis
 (Key Value), the ML service, and the backend API in one step. The React
 frontend deploys separately as a free Static Site (simpler than Docker for a
 static React build - no port wiring needed).
 
 ### 1. Push to GitHub first
+
 See "Push to GitHub" below if you haven't already - Render deploys from a
 Git repo, not a local folder or zip.
 
 ### 2. Deploy the backend + ML service + databases (Blueprint)
+
 1. Go to https://dashboard.render.com → **New** → **Blueprint**.
 2. Connect your GitHub account and select this repository.
 3. Render detects `render.yaml` and shows a preview of 4 resources:
@@ -195,6 +199,7 @@ Git repo, not a local folder or zip.
 5. Copy `crowd-backend`'s public URL, e.g. `https://crowd-backend-xxxx.onrender.com`.
 
 ### 3. Deploy the frontend (Static Site)
+
 1. **New** → **Static Site** → select this repo again.
 2. Root directory: `crowd-dashboard`
 3. Build command: `npm install && npm run build`
@@ -206,12 +211,14 @@ Git repo, not a local folder or zip.
    `https://crowd-dashboard.onrender.com`.
 
 ### 4. Close the loop: allow the frontend through CORS
+
 1. Go to the `crowd-backend` service → **Environment**.
 2. Edit `CORS_ALLOWED_ORIGINS` to your Static Site's URL from step 3
    (e.g. `https://crowd-dashboard.onrender.com`), save. This triggers a
    redeploy.
 
 ### Notes
+
 - Free-tier web services on Render spin down after inactivity and take
   ~30-60s to wake on the next request - the first login after idle time may
   time out once and succeed on retry.
@@ -219,7 +226,7 @@ Git repo, not a local folder or zip.
 - To retrain the ML model on real data later, see `ml-service/train_model.py`
   and its `--real-data` flag, then trigger a manual redeploy of
   `crowd-ml-service` (it retrains automatically on every build).
-=======
+
 # Crowd-Queue-Management-System
-Realtime Crowd and Queue Management System 
->>>>>>> 4fa3db9bb43d6185154677a649a8472047aea821
+
+Realtime Crowd and Queue Management System
