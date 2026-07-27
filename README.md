@@ -125,16 +125,13 @@ python -m py_compile app.py
    tab per service, since all three run simultaneously:
 
    **Terminal 1 - backend:**
-
    ```bash
    cd backend-springboot
    mvn spring-boot:run
    ```
-
    (Or use the Java extension's "Run" CodeLens above `CrowdApplication.java`'s `main` method.)
 
    **Terminal 2 - ML service:**
-
    ```bash
    cd ml-service
    pip install -r requirements.txt --break-system-packages
@@ -143,13 +140,11 @@ python -m py_compile app.py
    ```
 
    **Terminal 3 - frontend:**
-
    ```bash
    cd crowd-dashboard
    npm install
    npm start
    ```
-
 4. Open `http://localhost:3000` in your browser. Login: `admin@example.com` / `admin123`.
 5. Alternatively, skip terminals 1-2 and just run `docker compose up --build`
    from the repo root (needs Docker Desktop) - then only run terminal 3 for
@@ -176,18 +171,18 @@ python -m py_compile app.py
 4. Double-check `.env` was NOT pushed (it's in `.gitignore` already) - only
    `.env.example` should be in the repo.
 
+
+
 This repo includes a `render.yaml` Blueprint that provisions Postgres, Redis
 (Key Value), the ML service, and the backend API in one step. The React
 frontend deploys separately as a free Static Site (simpler than Docker for a
 static React build - no port wiring needed).
 
 ### 1. Push to GitHub first
-
 See "Push to GitHub" below if you haven't already - Render deploys from a
 Git repo, not a local folder or zip.
 
 ### 2. Deploy the backend + ML service + databases (Blueprint)
-
 1. Go to https://dashboard.render.com → **New** → **Blueprint**.
 2. Connect your GitHub account and select this repository.
 3. Render detects `render.yaml` and shows a preview of 4 resources:
@@ -199,7 +194,6 @@ Git repo, not a local folder or zip.
 5. Copy `crowd-backend`'s public URL, e.g. `https://crowd-backend-xxxx.onrender.com`.
 
 ### 3. Deploy the frontend (Static Site)
-
 1. **New** → **Static Site** → select this repo again.
 2. Root directory: `crowd-dashboard`
 3. Build command: `npm install && npm run build`
@@ -211,14 +205,12 @@ Git repo, not a local folder or zip.
    `https://crowd-dashboard.onrender.com`.
 
 ### 4. Close the loop: allow the frontend through CORS
-
 1. Go to the `crowd-backend` service → **Environment**.
 2. Edit `CORS_ALLOWED_ORIGINS` to your Static Site's URL from step 3
    (e.g. `https://crowd-dashboard.onrender.com`), save. This triggers a
    redeploy.
 
 ### Notes
-
 - Free-tier web services on Render spin down after inactivity and take
   ~30-60s to wake on the next request - the first login after idle time may
   time out once and succeed on retry.
@@ -227,6 +219,41 @@ Git repo, not a local folder or zip.
   and its `--real-data` flag, then trigger a manual redeploy of
   `crowd-ml-service` (it retrains automatically on every build).
 
-# Crowd-Queue-Management-System
+## Camera-based crowd counting - 3 ways to feed it
 
-Realtime Crowd and Queue Management System
+All three feed the same pipeline (`POST /api/camera/count` → CAMERA-sourced
+queue snapshot → live dashboard), so they show up identically no matter
+which one you use:
+
+| Method | What it needs | Continuous? |
+|---|---|---|
+| **Single photo upload** | Any phone/computer, one photo at a time | No - manual, one-shot |
+| **Live browser camera** | Any device with a browser + camera (laptop, phone, tablet) | Yes, while the dashboard tab is open (auto-captures every 5-60s) |
+| **CCTV / IP camera (RTSP)** | An actual CCTV/IP camera's RTSP URL, run as a background process | Yes, runs independently of any browser tab |
+
+**Live browser camera**: open the dashboard, log in, and in the "Live
+camera" section click **Start Live Camera**. Works on a laptop's webcam or
+a phone's camera (opens the rear camera by default on phones) - it keeps
+counting for as long as that browser tab stays open.
+
+**Real CCTV/IP camera**: see `ml-service/camera_poller.py` - a standalone
+script you run once on a server/Raspberry Pi near your cameras. It connects
+to your camera's RTSP URL, detects people every N seconds, and pushes counts
+to the backend - independent of any browser. Example:
+
+```bash
+cd ml-service
+export BACKEND_URL=http://localhost:8080/api
+export SERVICE_EMAIL=admin@example.com
+export SERVICE_PASSWORD=admin123
+export CAMERAS='[{"counter_id":1,"rtsp_url":"rtsp://user:pass@192.168.1.50:554/stream1"}]'
+python camera_poller.py
+```
+
+You can test it without real CCTV hardware first by using your computer's
+own webcam - set `"rtsp_url":"0"` (camera index 0) instead of an RTSP URL.
+
+Most consumer/commercial IP cameras (Hikvision, Dahua, TP-Link, Reolink,
+etc.) expose an RTSP URL in their app/web settings, typically formatted like
+`rtsp://<username>:<password>@<camera-ip>:554/<stream-path>` - check your
+camera's manual for the exact path.

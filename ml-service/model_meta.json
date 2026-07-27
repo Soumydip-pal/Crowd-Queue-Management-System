@@ -8,7 +8,7 @@
     "day_of_week",
     "is_weekend"
   ],
-  "trained_at": "2026-07-24T05:09:25.557797+00:00",
+  "trained_at": "2026-07-23T06:26:53.887378+00:00",
   "trained_on": "synthetic-bootstrap",
   "metrics": {
     "mae_minutes": 6.043,

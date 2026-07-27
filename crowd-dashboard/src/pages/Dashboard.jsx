@@ -36,6 +36,7 @@ import {
 import Topbar from "../components/Topbar";
 import Sidebar from "../components/Sidebar";
 import MetricCard from "../components/MetricCard";
+import LiveCameraWidget from "../components/LiveCameraWidget";
 import LiveChart from "../components/LiveChart";
 import HourlyChart from "../components/HourlyChart";
 
@@ -665,6 +666,19 @@ export default function Dashboard() {
                   />
                 </label>
               </form>
+            )}
+
+            {adminSession && (
+              <div className="live-camera-section">
+                <span className="muted">Live camera (any device with a browser)</span>
+                <LiveCameraWidget
+                  token={adminSession.accessToken}
+                  counterId={selectedCounterId}
+                  onResult={(result) =>
+                    setAdminMessage(`Camera detected ${result.currentLength} people - queue updated`)
+                  }
+                />
+              </div>
             )}
 
             {adminMessage && <p className="admin-message">{adminMessage}</p>}
