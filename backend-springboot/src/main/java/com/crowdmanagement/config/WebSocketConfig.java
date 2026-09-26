@@ -1,5 +1,6 @@
 package com.crowdmanagement.config;
 
+import java.util.Arrays;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -13,7 +14,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final String[] allowedOrigins;
 
     public WebSocketConfig(@Value("${app.cors.allowed-origins}") String allowedOrigins) {
-        this.allowedOrigins = allowedOrigins.split(",");
+        // Same trimming as SecurityConfig's CORS bean - keeps both in sync so a
+        // spaced-out CORS_ALLOWED_ORIGINS value doesn't silently break only one
+        // of REST calls or the live WebSocket feed.
+        this.allowedOrigins = Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .toArray(String[]::new);
     }
 
     @Override
