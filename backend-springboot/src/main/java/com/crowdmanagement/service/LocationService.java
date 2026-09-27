@@ -5,12 +5,15 @@ import com.crowdmanagement.dto.ApiDtos.CounterResponse;
 import com.crowdmanagement.dto.ApiDtos.CounterUpdateRequest;
 import com.crowdmanagement.dto.ApiDtos.LocationRequest;
 import com.crowdmanagement.dto.ApiDtos.LocationResponse;
+import com.crowdmanagement.model.AppUser;
 import com.crowdmanagement.model.CounterStatus;
 import com.crowdmanagement.model.Location;
 import com.crowdmanagement.model.Organization;
 import com.crowdmanagement.model.ServiceCounter;
+import com.crowdmanagement.model.UserRole;
 import com.crowdmanagement.repository.CounterRepository;
 import com.crowdmanagement.repository.LocationRepository;
+import com.crowdmanagement.repository.OrganizationRepository;
 import java.util.List;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -23,15 +26,18 @@ public class LocationService {
 
     private final LocationRepository locationRepository;
     private final CounterRepository counterRepository;
+    private final OrganizationRepository organizationRepository;
     private final CurrentUserService currentUserService;
 
     public LocationService(
         LocationRepository locationRepository,
         CounterRepository counterRepository,
+        OrganizationRepository organizationRepository,
         CurrentUserService currentUserService
     ) {
         this.locationRepository = locationRepository;
         this.counterRepository = counterRepository;
+        this.organizationRepository = organizationRepository;
         this.currentUserService = currentUserService;
     }
 
@@ -47,7 +53,8 @@ public class LocationService {
         Location location = new Location();
         location.setName(request.name().trim());
         location.setAddress(request.address().trim());
-        location.setOrganization(currentUserService.requireCurrentOrganization());
+        location.setOrganization(resolveOrganizationForLocationCreation(request.organizationId()));
+
         return toLocationResponse(locationRepository.save(location));
     }
 
@@ -67,7 +74,7 @@ public class LocationService {
         Location location = locationRepository.findById(request.locationId())
             .orElseThrow(() -> new IllegalArgumentException("Location not found"));
 
-        requireLocationInCurrentOrganization(location);
+        requireLocationAccess(location);
 
         ServiceCounter counter = new ServiceCounter();
         counter.setLocation(location);
@@ -84,7 +91,7 @@ public class LocationService {
         ServiceCounter counter = counterRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Counter not found"));
 
-        requireLocationInCurrentOrganization(counter.getLocation());
+        requireLocationAccess(counter.getLocation());
 
         if (request.status() != null) {
             counter.setStatus(request.status());
@@ -96,7 +103,25 @@ public class LocationService {
         return toCounterResponse(counter);
     }
 
-    private void requireLocationInCurrentOrganization(Location location) {
+    private Organization resolveOrganizationForLocationCreation(Long organizationId) {
+        AppUser currentUser = currentUserService.requireCurrentUser();
+
+        if (isGlobalAdmin(currentUser) && organizationId != null) {
+            return organizationRepository.findById(organizationId)
+                .filter(Organization::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Active organization not found"));
+        }
+
+        return currentUserService.requireCurrentOrganization();
+    }
+
+    private void requireLocationAccess(Location location) {
+        AppUser currentUser = currentUserService.requireCurrentUser();
+
+        if (isGlobalAdmin(currentUser)) {
+            return;
+        }
+
         Organization currentOrganization = currentUserService.requireCurrentOrganization();
         Organization locationOrganization = location.getOrganization();
 
@@ -104,6 +129,11 @@ public class LocationService {
             || !locationOrganization.getId().equals(currentOrganization.getId())) {
             throw new AccessDeniedException("This location belongs to another organization");
         }
+    }
+
+    private boolean isGlobalAdmin(AppUser user) {
+        return user.getRole() == UserRole.ADMIN
+            || user.getRole() == UserRole.PLATFORM_ADMIN;
     }
 
     private LocationResponse toLocationResponse(Location location) {
