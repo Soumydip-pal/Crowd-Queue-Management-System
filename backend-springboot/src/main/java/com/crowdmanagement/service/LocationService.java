@@ -47,7 +47,7 @@ public class LocationService {
     // Keyed by locationId (including the "all counters" null case) so each
     // location's counter list caches independently; TTL kept short since
     // counter status/service-rate change more often than location metadata.
-    @Cacheable(value = "counters", key = "#locationId")
+    @Cacheable(value = "counters", key = "#root.args[0] ?: 'all'")
     @Transactional(readOnly = true)
     public List<CounterResponse> listCounters(Long locationId) {
         List<ServiceCounter> counters = locationId == null
