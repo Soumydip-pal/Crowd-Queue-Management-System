@@ -32,7 +32,12 @@ public class AuthService {
         user.setName(request.name().trim());
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setRole(request.role() == null ? UserRole.USER : request.role());
+        // Self-registration always creates a plain USER account, regardless of what
+        // role value the client sends. /api/auth/register is publicly reachable
+        // (permitAll in SecurityConfig), so honoring a client-supplied role would let
+        // anyone grant themselves ADMIN or MANAGER. Privileged accounts must be
+        // created another way (e.g. directly in the database or by an existing admin).
+        user.setRole(UserRole.USER);
         AppUser saved = userRepository.save(user);
         return response(saved);
     }
