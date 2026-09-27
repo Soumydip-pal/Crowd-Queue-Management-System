@@ -20,6 +20,7 @@ import {
   createCounter,
   createAlertSubscription,
   createLocation,
+  createOrganization,
   downloadAnalyticsPdf,
   getAnalyticsCsv,
   getAnalyticsSummary,
@@ -28,6 +29,7 @@ import {
   getLiveStatus,
   getLocations,
   getMyAlertSubscriptions,
+  getOrganizations,
   login,
   register,
   postQueueUpdate,
@@ -45,6 +47,9 @@ const WS_URL = process.env.REACT_APP_WS_URL || "http://localhost:8080/ws";
 
 export default function Dashboard() {
   const [locations, setLocations] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [organizationForm, setOrganizationForm] = useState({ name: "", code: "" });
+  const [organizationMessage, setOrganizationMessage] = useState("");
   const [counters, setCounters] = useState([]);
   const [selectedCounterId, setSelectedCounterId] = useState(1);
   const [live, setLive] = useState(null);
@@ -56,6 +61,7 @@ export default function Dashboard() {
   // the backend (see SecurityConfig) - a plain USER account can sign in and manage
   // alert subscriptions, but should not see staff-only forms that would just 403.
   const isStaff = adminSession?.role === "ADMIN" || adminSession?.role === "MANAGER";
+  const isGlobalAdmin = adminSession?.role === "ADMIN" || adminSession?.role === "PLATFORM_ADMIN";
   const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
   const [loginForm, setLoginForm] = useState({
     email: "",
@@ -126,7 +132,12 @@ export default function Dashboard() {
     if (isStaff) {
       loadAnalytics(adminSession.accessToken, selectedCounterId, analyticsHours);
     }
-  }, [adminSession, isStaff, selectedCounterId, analyticsHours]);
+    if (isGlobalAdmin) {
+       loadOrganizations(adminSession.accessToken);
+    } else {
+       setOrganizations([]);
+    }
+  }, [adminSession, isStaff, isGlobalAdmin, selectedCounterId, analyticsHours]);
 
   async function loadReferenceData(preferredCounterId) {
     try {
@@ -153,6 +164,15 @@ export default function Dashboard() {
       setError(err.message);
     }
   }
+
+  async function loadOrganizations(token) {
+  try {
+    const organizationList = await getOrganizations(token);
+    setOrganizations(organizationList);
+  } catch (err) {
+    setOrganizationMessage(err.message);
+  }
+}
 
   async function loadAlertSubscriptions(token) {
     try {
@@ -334,7 +354,38 @@ export default function Dashboard() {
       setIsSubmitting(false);
     }
   }
+  async function handleCreateOrganization(event) {
+  event.preventDefault();
 
+  if (!adminSession?.accessToken) {
+    setOrganizationMessage("Admin login required");
+    return;
+  }
+
+  if (!organizationForm.name.trim() || !organizationForm.code.trim()) {
+    setOrganizationMessage("Organization name and code are required");
+    return;
+  }
+
+  setIsSubmitting(true);
+  setOrganizationMessage("");
+
+  try {
+    await createOrganization({
+      token: adminSession.accessToken,
+      name: organizationForm.name,
+      code: organizationForm.code,
+    });
+
+    setOrganizationForm({ name: "", code: "" });
+    await loadOrganizations(adminSession.accessToken);
+    setOrganizationMessage("Organization created");
+  } catch (err) {
+    setOrganizationMessage(err.message);
+  } finally {
+    setIsSubmitting(false);
+  }
+}
   async function handleCreateLocation(event) {
     event.preventDefault();
     if (!adminSession) {
@@ -828,6 +879,60 @@ export default function Dashboard() {
 
           {isStaff && (
             <section className="management-grid">
+              {isGlobalAdmin && (
+  <form className="card management-card" onSubmit={handleCreateOrganization}>
+    <div>
+      <span className="muted">Global administration</span>
+      <h2>Organizations</h2>
+    </div>
+
+    <label>
+      Organization name
+      <input
+        required
+        value={organizationForm.name}
+        onChange={(event) =>
+          setOrganizationForm((current) => ({
+            ...current,
+            name: event.target.value,
+          }))
+        }
+        placeholder="City Hospital"
+      />
+    </label>
+
+    <label>
+      Organization code
+      <input
+        required
+        value={organizationForm.code}
+        onChange={(event) =>
+          setOrganizationForm((current) => ({
+            ...current,
+            code: event.target.value.toUpperCase(),
+          }))
+        }
+        placeholder="CITY_HOSPITAL"
+      />
+    </label>
+
+    <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+      <FiPlusCircle /> Add Organization
+    </button>
+
+    <div className="subscription-list">
+      {organizations.map((organization) => (
+        <div className="subscription-row" key={organization.id}>
+          <strong>{organization.name}</strong>
+          <span>{organization.code}</span>
+          <span className="badge">{organization.active ? "ACTIVE" : "INACTIVE"}</span>
+        </div>
+      ))}
+    </div>
+
+    {organizationMessage && <p className="admin-message">{organizationMessage}</p>}
+  </form>
+)}
               <form className="card management-card" onSubmit={handleCreateLocation}>
                 <div>
                   <span className="muted">Locations</span>
