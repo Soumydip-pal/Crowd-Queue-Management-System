@@ -73,7 +73,11 @@ export default function Dashboard() {
     password: "",
   });
   const [manualCount, setManualCount] = useState("");
-  const [locationForm, setLocationForm] = useState({ name: "", address: "" });
+  const [locationForm, setLocationForm] = useState({
+  name: "",
+  address: "",
+  organizationId: "",
+});
   const [counterForm, setCounterForm] = useState({
     locationId: "",
     name: "",
@@ -165,10 +169,15 @@ export default function Dashboard() {
     }
   }
 
-  async function loadOrganizations(token) {
+ async function loadOrganizations(token) {
   try {
     const organizationList = await getOrganizations(token);
     setOrganizations(organizationList);
+
+    setLocationForm((current) => ({
+      ...current,
+      organizationId: current.organizationId || organizationList[0]?.id || "",
+    }));
   } catch (err) {
     setOrganizationMessage(err.message);
   }
@@ -371,13 +380,17 @@ export default function Dashboard() {
   setOrganizationMessage("");
 
   try {
-    await createOrganization({
+    const organization = await createOrganization({
       token: adminSession.accessToken,
       name: organizationForm.name,
       code: organizationForm.code,
     });
 
     setOrganizationForm({ name: "", code: "" });
+    setLocationForm((current) => ({
+  ...current,
+  organizationId: organization.id,
+}));
     await loadOrganizations(adminSession.accessToken);
     setOrganizationMessage("Organization created");
   } catch (err) {
@@ -397,11 +410,18 @@ export default function Dashboard() {
     setAdminMessage("");
     try {
       const location = await createLocation({
-        token: adminSession.accessToken,
-        name: locationForm.name,
-        address: locationForm.address,
-      });
-      setLocationForm({ name: "", address: "" });
+  token: adminSession.accessToken,
+  name: locationForm.name,
+  address: locationForm.address,
+  organizationId: locationForm.organizationId
+    ? Number(locationForm.organizationId)
+    : undefined,
+});
+      setLocationForm((current) => ({
+  name: "",
+  address: "",
+  organizationId: current.organizationId,
+}));
       setCounterForm((current) => ({ ...current, locationId: location.id }));
       await loadReferenceData(selectedCounterId);
       setAdminMessage("Location created");
@@ -939,6 +959,27 @@ export default function Dashboard() {
                   <h2>Create Location</h2>
                 </div>
                 <label>
+                  {isGlobalAdmin && (
+  <label>
+    Organization
+    <select
+      required
+      value={locationForm.organizationId}
+      onChange={(event) =>
+        setLocationForm((current) => ({
+          ...current,
+          organizationId: event.target.value,
+        }))
+      }
+    >
+      {organizations.map((organization) => (
+        <option key={organization.id} value={organization.id}>
+          {organization.name}
+        </option>
+      ))}
+    </select>
+  </label>
+)}
                   Name
                   <input
                     required
