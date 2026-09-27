@@ -11,10 +11,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "alert_subscriptions")
 public class AlertSubscription {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -36,6 +38,9 @@ public class AlertSubscription {
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column
+    private OffsetDateTime lastNotifiedAt;
 
     public Long getId() {
         return id;
@@ -79,5 +84,13 @@ public class AlertSubscription {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public OffsetDateTime getLastNotifiedAt() {
+        return lastNotifiedAt;
+    }
+
+    public void setLastNotifiedAt(OffsetDateTime lastNotifiedAt) {
+        this.lastNotifiedAt = lastNotifiedAt;
     }
 }
