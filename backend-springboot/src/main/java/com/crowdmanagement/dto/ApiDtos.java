@@ -13,8 +13,12 @@ public final class ApiDtos {
     private ApiDtos() {
     }
 
-    public record LocationRequest(@NotBlank String name, @NotBlank String address) {
-    }
+    public record LocationRequest(
+    @NotBlank String name,
+    @NotBlank String address,
+    Long organizationId
+) {
+}
 
     public record LocationResponse(Long id, String name, String address) {
     }
