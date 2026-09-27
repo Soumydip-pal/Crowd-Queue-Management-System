@@ -22,67 +22,96 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration
 public class SecurityConfig {
-  private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
-  private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
 
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
-    this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-  }
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-  @Bean
-  public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    http
-        .csrf(AbstractHttpConfigurer::disable)
-        .cors(cors -> {
-        })
-        .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/auth/**", "/api/crowd-status", "/api/health", "/ws/**").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/locations", "/api/locations/counters", "/api/counters",
-                "/api/counters/**")
-            .permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/queue/latest", "/api/queue/history", "/api/queue/live",
-                "/api/predict/**")
-            .permitAll()
-            .requestMatchers("/api/analytics/**").hasAnyRole("ADMIN", "MANAGER")
-            .requestMatchers("/api/locations", "/api/locations/**", "/api/counters", "/api/counters/**", "/api/queue",
-                "/api/camera/**")
-            .hasAnyRole("ADMIN", "MANAGER")
-            .anyRequest().authenticated())
-        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    }
 
-    return http.build();
-  }
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(cors -> {
+            })
+            .sessionManagement(
+                session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            )
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(
+                    "/api/auth/**",
+                    "/api/health",
+                    "/ws/**"
+                ).permitAll()
 
-  @Bean
-  public PasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
+                .requestMatchers(
+                    HttpMethod.GET,
+                    "/api/crowd-status",
+                    "/api/locations",
+                    "/api/locations/**",
+                    "/api/counters",
+                    "/api/counters/**",
+                    "/api/queue/latest",
+                    "/api/queue/live",
+                    "/api/queue/history",
+                    "/api/predict/**"
+                ).permitAll()
 
-  @Bean
-  public CorsConfigurationSource corsConfigurationSource(
-      @Value("${app.cors.allowed-origins}") String allowedOrigins) {
-    // Trim each origin so "https://a.com, https://b.com" (with a space after
-    // the comma) still matches - a stray leading space makes the entry never
-    // match the browser's Origin header, which otherwise fails silently as a
-    // CORS error with no obvious cause. Blank entries are dropped too.
-    List<String> origins = Arrays.stream(allowedOrigins.split(","))
-        .map(String::trim)
-        .filter(origin -> !origin.isEmpty())
-        .toList();
-    log.info("CORS allowed origins: {}", origins);
+                .requestMatchers("/api/analytics/**")
+                .hasAnyRole("ADMIN", "MANAGER")
 
-    CorsConfiguration config = new CorsConfiguration();
-    config.setAllowedOrigins(origins);
-    config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-    config.setAllowCredentials(true);
-    config.setMaxAge(3600L);
+                .requestMatchers(
+                    "/api/locations",
+                    "/api/locations/**",
+                    "/api/counters",
+                    "/api/counters/**",
+                    "/api/queue",
+                    "/api/camera/**"
+                ).hasAnyRole("ADMIN", "MANAGER")
 
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    source.registerCorsConfiguration("/**", config);
-    return source;
-  }
+                .anyRequest().authenticated()
+            )
+            .addFilterBefore(
+                jwtAuthenticationFilter,
+                UsernamePasswordAuthenticationFilter.class
+            );
+
+        return http.build();
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(
+        @Value("${app.cors.allowed-origins}") String allowedOrigins
+    ) {
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+            .map(String::trim)
+            .filter(origin -> !origin.isEmpty())
+            .toList();
+
+        log.info("CORS allowed origins: {}", origins);
+
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(origins);
+        config.setAllowedMethods(
+            List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+        );
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source =
+            new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", config);
+
+        return source;
+    }
 }
- 
