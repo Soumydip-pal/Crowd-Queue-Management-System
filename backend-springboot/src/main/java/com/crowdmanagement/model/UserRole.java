@@ -1,7 +1,9 @@
 package com.crowdmanagement.model;
 
 public enum UserRole {
-    USER,
-    ADMIN,
-    MANAGER
+    PLATFORM_ADMIN,
+    ORG_ADMIN,
+    MANAGER,
+    OPERATOR,
+    USER
 }
