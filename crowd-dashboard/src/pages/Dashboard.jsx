@@ -988,14 +988,13 @@ export default function Dashboard() {
                 <FiBell /> Wait-Time Subscription
               </h2>
               <p>
-                Subscribe to the selected counter and use the threshold to know when the
-                predicted wait is acceptable.
+                Receive an email when the predicted wait reaches or exceeds your selected threshold.
               </p>
             </div>
 
             <form className="alert-form" onSubmit={handleCreateAlert}>
               <label>
-                Threshold wait
+                Alert threshold (minutes)
                 <input
                   type="number"
                   min="1"
@@ -1018,7 +1017,6 @@ export default function Dashboard() {
                   }
                 >
                   <option value="EMAIL">Email</option>
-                  <option value="WEBPUSH">Web push</option>
                 </select>
               </label>
               <button type="submit" className="btn btn-primary" disabled={isSubmitting || !adminSession}>
@@ -1030,7 +1028,7 @@ export default function Dashboard() {
               {alertSubscriptions.map((subscription) => (
                 <div className="subscription-row" key={subscription.id}>
                   <strong>{subscription.counterName}</strong>
-                  <span>{subscription.thresholdWaitMin} min or less</span>
+                  <span>{subscription.thresholdWaitMin} min or more</span>
                   <span className="badge">{subscription.notifyChannel}</span>
                 </div>
               ))}
