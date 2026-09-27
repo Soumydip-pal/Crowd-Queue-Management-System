@@ -588,6 +588,16 @@ h2 {
   outline-offset: 1px;
 }
 
+.auth-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.auth-tabs .btn {
+  flex: 1;
+}
+
 .session-row {
   display: flex;
   align-items: center;
