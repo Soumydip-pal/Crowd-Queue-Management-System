@@ -60,7 +60,10 @@ public class SecurityConfig {
                     "/api/predict/**"
                 ).permitAll()
 
-                .requestMatchers("/api/organizations/**").hasRole("ADMIN")                   
+                .requestMatchers(HttpMethod.GET, "/api/organizations")
+                .hasAnyRole("ADMIN", "PLATFORM_ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/organizations")
+                .hasAnyRole("ADMIN", "PLATFORM_ADMIN")                   
                 .requestMatchers("/api/analytics/**")
                 .hasAnyRole("ADMIN", "MANAGER")
 
