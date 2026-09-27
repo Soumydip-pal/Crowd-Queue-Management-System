@@ -1,9 +1,9 @@
 package com.crowdmanagement.service;
 
+import com.crowdmanagement.dto.ApiDtos.LiveCounterPayload;
 import com.crowdmanagement.dto.ApiDtos.PredictionResponse;
 import com.crowdmanagement.dto.ApiDtos.QueueSnapshotResponse;
 import com.crowdmanagement.dto.ApiDtos.QueueUpdateRequest;
-import com.crowdmanagement.dto.ApiDtos.LiveCounterPayload;
 import com.crowdmanagement.model.QueueSnapshot;
 import com.crowdmanagement.model.ServiceCounter;
 import com.crowdmanagement.model.SnapshotSource;
@@ -16,47 +16,72 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class QueueService {
+
     private final CounterRepository counterRepository;
     private final QueueSnapshotRepository snapshotRepository;
     private final PredictionService predictionService;
     private final LiveUpdateService liveUpdateService;
+    private final AlertService alertService;
 
     public QueueService(
         CounterRepository counterRepository,
         QueueSnapshotRepository snapshotRepository,
         PredictionService predictionService,
-        LiveUpdateService liveUpdateService
+        LiveUpdateService liveUpdateService,
+        AlertService alertService
     ) {
         this.counterRepository = counterRepository;
         this.snapshotRepository = snapshotRepository;
         this.predictionService = predictionService;
         this.liveUpdateService = liveUpdateService;
+        this.alertService = alertService;
     }
 
     @Transactional
     public LiveCounterPayload recordSnapshot(QueueUpdateRequest request) {
         ServiceCounter counter = getCounter(request.counterId());
+
         QueueSnapshot snapshot = new QueueSnapshot();
         snapshot.setCounter(counter);
         snapshot.setCurrentLength(request.currentLength());
         snapshot.setAvgWaitTimeMin(request.avgWaitTimeMin());
-        snapshot.setSource(request.source() == null ? SnapshotSource.MANUAL : request.source());
+        snapshot.setSource(
+            request.source() == null
+                ? SnapshotSource.MANUAL
+                : request.source()
+        );
+
         QueueSnapshot saved = snapshotRepository.save(snapshot);
         PredictionResponse prediction = predictionService.predictNow(counter);
         LiveCounterPayload payload = toLivePayload(saved, prediction);
+
         liveUpdateService.publishCounterUpdate(payload);
+
+        alertService.notifySubscribers(
+            payload.counterId(),
+            payload.counterName(),
+            payload.predictedWaitMin(),
+            payload.currentLength()
+        );
+
         return payload;
     }
 
     public QueueSnapshotResponse latest(Long counterId) {
-        return snapshotRepository.findFirstByCounterIdOrderByTimestampDesc(counterId)
+        return snapshotRepository
+            .findFirstByCounterIdOrderByTimestampDesc(counterId)
             .map(this::toResponse)
-            .orElseThrow(() -> new IllegalArgumentException("No queue snapshot found"));
+            .orElseThrow(
+                () -> new IllegalArgumentException("No queue snapshot found")
+            );
     }
+
     @Transactional(readOnly = true)
     public LiveCounterPayload liveStatus(Long counterId) {
         ServiceCounter counter = getCounter(counterId);
-        QueueSnapshot snapshot = snapshotRepository.findFirstByCounterIdOrderByTimestampDesc(counterId)
+
+        QueueSnapshot snapshot = snapshotRepository
+            .findFirstByCounterIdOrderByTimestampDesc(counterId)
             .orElseGet(() -> {
                 QueueSnapshot empty = new QueueSnapshot();
                 empty.setCounter(counter);
@@ -65,13 +90,27 @@ public class QueueService {
                 empty.setSource(SnapshotSource.API);
                 return empty;
             });
-        return toLivePayload(snapshot, predictionService.previewNow(counter));
+
+        return toLivePayload(
+            snapshot,
+            predictionService.previewNow(counter)
+        );
     }
 
-    public List<QueueSnapshotResponse> history(Long counterId, OffsetDateTime from, OffsetDateTime to) {
+    public List<QueueSnapshotResponse> history(
+        Long counterId,
+        OffsetDateTime from,
+        OffsetDateTime to
+    ) {
         OffsetDateTime end = to == null ? OffsetDateTime.now() : to;
         OffsetDateTime start = from == null ? end.minusHours(24) : from;
-        return snapshotRepository.findByCounterIdAndTimestampBetweenOrderByTimestampAsc(counterId, start, end)
+
+        return snapshotRepository
+            .findByCounterIdAndTimestampBetweenOrderByTimestampAsc(
+                counterId,
+                start,
+                end
+            )
             .stream()
             .map(this::toResponse)
             .toList();
@@ -83,7 +122,9 @@ public class QueueService {
 
     public ServiceCounter getCounter(Long counterId) {
         return counterRepository.findById(counterId)
-            .orElseThrow(() -> new IllegalArgumentException("Counter not found"));
+            .orElseThrow(
+                () -> new IllegalArgumentException("Counter not found")
+            );
     }
 
     private QueueSnapshotResponse toResponse(QueueSnapshot snapshot) {
@@ -97,10 +138,18 @@ public class QueueService {
         );
     }
 
-    private LiveCounterPayload toLivePayload(QueueSnapshot snapshot, PredictionResponse prediction) {
+    private LiveCounterPayload toLivePayload(
+        QueueSnapshot snapshot,
+        PredictionResponse prediction
+    ) {
         ServiceCounter counter = snapshot.getCounter();
         int predictedWait = prediction.predictedWaitMin();
-        String status = snapshot.getCurrentLength() >= 80 || predictedWait >= 30 ? "Overcrowded" : "Normal";
+
+        String status =
+            snapshot.getCurrentLength() >= 80 || predictedWait >= 30
+                ? "Overcrowded"
+                : "Normal";
+
         return new LiveCounterPayload(
             counter.getId(),
             counter.getLocation().getId(),
