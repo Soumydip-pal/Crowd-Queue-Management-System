@@ -53,7 +53,7 @@ public class QueueService {
             .map(this::toResponse)
             .orElseThrow(() -> new IllegalArgumentException("No queue snapshot found"));
     }
-
+    @Transactional(readOnly = true)
     public LiveCounterPayload liveStatus(Long counterId) {
         ServiceCounter counter = getCounter(counterId);
         QueueSnapshot snapshot = snapshotRepository.findFirstByCounterIdOrderByTimestampDesc(counterId)
