@@ -55,6 +55,7 @@ services:
       ml-service:
         condition: service_healthy
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-crowd_management}
       DB_USERNAME: ${POSTGRES_USER:-crowd_user}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-crowd_password}
