@@ -12,8 +12,11 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Profile;
+
 
 @Configuration
+@Profile({"dev", "test"})    
 public class DataSeeder {
     @Bean
     CommandLineRunner seedData(
