@@ -118,4 +118,18 @@ public final class ApiDtos {
         double averagePredictedWaitMin
     ) {
     }
+        public record OrganizationRequest(
+        @NotBlank String name,
+        @NotBlank String code
+    ) {
+    }
+
+    public record OrganizationResponse(
+        Long id,
+        String name,
+        String code,
+        boolean active,
+        OffsetDateTime createdAt
+    ) {
+    }
 }
