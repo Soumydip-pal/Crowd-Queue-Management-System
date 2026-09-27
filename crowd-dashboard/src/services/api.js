@@ -177,3 +177,16 @@ export async function uploadCameraFrame({ token, counterId, imageFile, roi }) {
 export async function getCrowdStatus() {
   return request("/crowd-status");
 }
+export async function getOrganizations(token) {
+  return request("/organizations", {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function createOrganization({ token, name, code }) {
+  return request("/organizations", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify({ name, code }),
+  });
+}
