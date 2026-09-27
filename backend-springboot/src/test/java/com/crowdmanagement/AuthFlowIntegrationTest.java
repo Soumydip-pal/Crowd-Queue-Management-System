@@ -46,7 +46,7 @@ class AuthFlowIntegrationTest {
                 .content(registerBody))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.accessToken").exists())
-            .andExpect(jsonPath("$.role").value("MANAGER"));
+            .andExpect(jsonPath("$.role").value("USER"));
 
         String loginBody = objectMapper.writeValueAsString(java.util.Map.of(
             "email", email,
