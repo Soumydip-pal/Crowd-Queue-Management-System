@@ -29,6 +29,7 @@ import {
   getLocations,
   getMyAlertSubscriptions,
   login,
+  register,
   postQueueUpdate,
   updateCounter,
   uploadCameraFrame,
@@ -51,9 +52,19 @@ export default function Dashboard() {
   const [connectionState, setConnectionState] = useState("connecting");
   const [error, setError] = useState(null);
   const [adminSession, setAdminSession] = useState(loadSavedSession);
+  // Locations/counters/manual queue updates/analytics are ADMIN & MANAGER only on
+  // the backend (see SecurityConfig) - a plain USER account can sign in and manage
+  // alert subscriptions, but should not see staff-only forms that would just 403.
+  const isStaff = adminSession?.role === "ADMIN" || adminSession?.role === "MANAGER";
+  const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
   const [loginForm, setLoginForm] = useState({
     email: "admin@example.com",
     password: "admin123",
+  });
+  const [signupForm, setSignupForm] = useState({
+    name: "",
+    email: "",
+    password: "",
   });
   const [manualCount, setManualCount] = useState("");
   const [locationForm, setLocationForm] = useState({ name: "", address: "" });
@@ -110,8 +121,12 @@ export default function Dashboard() {
       return;
     }
     loadAlertSubscriptions(adminSession.accessToken);
-    loadAnalytics(adminSession.accessToken, selectedCounterId, analyticsHours);
-  }, [adminSession, selectedCounterId, analyticsHours]);
+    // Analytics is ADMIN/MANAGER only on the backend - skip the call for a plain
+    // USER session so it doesn't just fail with a 403.
+    if (isStaff) {
+      loadAnalytics(adminSession.accessToken, selectedCounterId, analyticsHours);
+    }
+  }, [adminSession, isStaff, selectedCounterId, analyticsHours]);
 
   async function loadReferenceData(preferredCounterId) {
     try {
@@ -238,16 +253,41 @@ export default function Dashboard() {
     ]);
   }
 
+  function applySession(session) {
+    setAdminSession(session);
+    window.localStorage.setItem("crowd_admin_session", JSON.stringify(session));
+  }
+
   async function handleLogin(event) {
     event.preventDefault();
     setIsSubmitting(true);
     setAdminMessage("");
     try {
       const session = await login(loginForm.email, loginForm.password);
-      setAdminSession(session);
-      window.localStorage.setItem("crowd_admin_session", JSON.stringify(session));
+      applySession(session);
       await loadAlertSubscriptions(session.accessToken);
       setAdminMessage(`Signed in as ${session.role}`);
+    } catch (err) {
+      setAdminMessage(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSignup(event) {
+    event.preventDefault();
+    if (signupForm.password.length < 6) {
+      setAdminMessage("Password must be at least 6 characters");
+      return;
+    }
+    setIsSubmitting(true);
+    setAdminMessage("");
+    try {
+      const session = await register(signupForm.name, signupForm.email, signupForm.password);
+      applySession(session);
+      await loadAlertSubscriptions(session.accessToken);
+      setAdminMessage(`Account created - signed in as ${session.name}`);
+      setSignupForm({ name: "", email: "", password: "" });
     } catch (err) {
       setAdminMessage(err.message);
     } finally {
@@ -597,94 +637,196 @@ export default function Dashboard() {
           </section>
 
           <section id="admin-console" className="card admin-panel">
-            <div className="admin-copy">
-              <span className="muted">Admin console</span>
-              <h2>Manual Queue Update</h2>
-              <p>
-                Operators can post live queue counts for the selected counter. The backend stores
-                the snapshot, recalculates baseline prediction, and broadcasts the update.
-              </p>
-            </div>
-
             {!adminSession ? (
-              <form className="admin-form" onSubmit={handleLogin}>
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={loginForm.email}
-                    onChange={(event) =>
-                      setLoginForm((current) => ({ ...current, email: event.target.value }))
-                    }
-                  />
-                </label>
-                <label>
-                  Password
-                  <input
-                    type="password"
-                    value={loginForm.password}
-                    onChange={(event) =>
-                      setLoginForm((current) => ({ ...current, password: event.target.value }))
-                    }
-                  />
-                </label>
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                  Sign In
-                </button>
-              </form>
-            ) : (
-              <form className="admin-form" onSubmit={handleManualUpdate}>
+              <>
+                <div className="admin-copy">
+                  <span className="muted">Account</span>
+                  <h2>{authMode === "login" ? "Sign In" : "Create Your Account"}</h2>
+                  <p>
+                    {authMode === "login"
+                      ? "Sign in to subscribe to wait-time alerts. Staff accounts can also update queues and manage counters."
+                      : "Create a free account to subscribe to wait-time alerts for any counter."}
+                  </p>
+                </div>
+
+                <div className="auth-tabs">
+                  <button
+                    type="button"
+                    className={`btn ${authMode === "login" ? "btn-primary" : "btn-ghost"}`}
+                    onClick={() => {
+                      setAuthMode("login");
+                      setAdminMessage("");
+                    }}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${authMode === "signup" ? "btn-primary" : "btn-ghost"}`}
+                    onClick={() => {
+                      setAuthMode("signup");
+                      setAdminMessage("");
+                    }}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+
+                {authMode === "login" ? (
+                  <form className="admin-form" onSubmit={handleLogin}>
+                    <label>
+                      Email
+                      <input
+                        type="email"
+                        required
+                        value={loginForm.email}
+                        onChange={(event) =>
+                          setLoginForm((current) => ({ ...current, email: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Password
+                      <input
+                        type="password"
+                        required
+                        value={loginForm.password}
+                        onChange={(event) =>
+                          setLoginForm((current) => ({ ...current, password: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                      Sign In
+                    </button>
+                  </form>
+                ) : (
+                  <form className="admin-form" onSubmit={handleSignup}>
+                    <label>
+                      Full name
+                      <input
+                        type="text"
+                        required
+                        value={signupForm.name}
+                        onChange={(event) =>
+                          setSignupForm((current) => ({ ...current, name: event.target.value }))
+                        }
+                        placeholder="Example: Priya Sharma"
+                      />
+                    </label>
+                    <label>
+                      Email
+                      <input
+                        type="email"
+                        required
+                        value={signupForm.email}
+                        onChange={(event) =>
+                          setSignupForm((current) => ({ ...current, email: event.target.value }))
+                        }
+                      />
+                    </label>
+                    <label>
+                      Password
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={signupForm.password}
+                        onChange={(event) =>
+                          setSignupForm((current) => ({ ...current, password: event.target.value }))
+                        }
+                        placeholder="At least 6 characters"
+                      />
+                    </label>
+                    <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                      Create Account
+                    </button>
+                  </form>
+                )}
+
+                {adminMessage && <p className="admin-message">{adminMessage}</p>}
+              </>
+            ) : !isStaff ? (
+              <>
+                <div className="admin-copy">
+                  <span className="muted">Account</span>
+                  <h2>Welcome, {adminSession.name}</h2>
+                  <p>
+                    You're signed in. Subscribe to wait-time alerts below to get notified when a
+                    counter you care about gets busy.
+                  </p>
+                </div>
                 <div className="session-row">
                   <span>{adminSession.email}</span>
                   <button type="button" className="btn btn-ghost" onClick={handleLogout}>
                     <FiLogOut /> Sign Out
                   </button>
                 </div>
-                <label>
-                  Current queue length
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={manualCount}
-                    onChange={(event) => setManualCount(event.target.value)}
-                    placeholder="Example: 42"
-                  />
-                </label>
-                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                  <FiSend /> Submit Count
-                </button>
-                <label className="btn btn-secondary camera-upload-label">
-                  <FiCamera /> Count from camera photo
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    onChange={handleCameraUpload}
-                    disabled={isSubmitting}
-                    style={{ display: "none" }}
-                  />
-                </label>
-              </form>
-            )}
+                {adminMessage && <p className="admin-message">{adminMessage}</p>}
+              </>
+            ) : (
+              <>
+                <div className="admin-copy">
+                  <span className="muted">Admin console</span>
+                  <h2>Manual Queue Update</h2>
+                  <p>
+                    Operators can post live queue counts for the selected counter. The backend
+                    stores the snapshot, recalculates baseline prediction, and broadcasts the
+                    update.
+                  </p>
+                </div>
 
-            {adminSession && (
-              <div className="live-camera-section">
-                <span className="muted">Live camera (any device with a browser)</span>
-                <LiveCameraWidget
-                  token={adminSession.accessToken}
-                  counterId={selectedCounterId}
-                  onResult={(result) =>
-                    setAdminMessage(`Camera detected ${result.currentLength} people - queue updated`)
-                  }
-                />
-              </div>
-            )}
+                <form className="admin-form" onSubmit={handleManualUpdate}>
+                  <div className="session-row">
+                    <span>{adminSession.email}</span>
+                    <button type="button" className="btn btn-ghost" onClick={handleLogout}>
+                      <FiLogOut /> Sign Out
+                    </button>
+                  </div>
+                  <label>
+                    Current queue length
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={manualCount}
+                      onChange={(event) => setManualCount(event.target.value)}
+                      placeholder="Example: 42"
+                    />
+                  </label>
+                  <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                    <FiSend /> Submit Count
+                  </button>
+                  <label className="btn btn-secondary camera-upload-label">
+                    <FiCamera /> Count from camera photo
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleCameraUpload}
+                      disabled={isSubmitting}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </form>
 
-            {adminMessage && <p className="admin-message">{adminMessage}</p>}
+                <div className="live-camera-section">
+                  <span className="muted">Live camera (any device with a browser)</span>
+                  <LiveCameraWidget
+                    token={adminSession.accessToken}
+                    counterId={selectedCounterId}
+                    onResult={(result) =>
+                      setAdminMessage(`Camera detected ${result.currentLength} people - queue updated`)
+                    }
+                  />
+                </div>
+
+                {adminMessage && <p className="admin-message">{adminMessage}</p>}
+              </>
+            )}
           </section>
 
-          {adminSession && (
+          {isStaff && (
             <section className="management-grid">
               <form className="card management-card" onSubmit={handleCreateLocation}>
                 <div>
@@ -902,7 +1044,7 @@ export default function Dashboard() {
             {alertMessage && <p className="admin-message">{alertMessage}</p>}
           </section>
 
-          {adminSession && (
+          {isStaff && (
             <section id="analytics" className="card analytics-panel">
               <div className="analytics-header">
                 <div>
