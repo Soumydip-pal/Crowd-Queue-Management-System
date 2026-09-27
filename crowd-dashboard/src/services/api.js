@@ -30,6 +30,13 @@ export async function login(email, password) {
   });
 }
 
+export async function register(name, email, password) {
+  return request("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ name, email, password }),
+  });
+}
+
 export async function getLocations() {
   return request("/locations");
 }
