@@ -58,8 +58,8 @@ export default function Dashboard() {
   const isStaff = adminSession?.role === "ADMIN" || adminSession?.role === "MANAGER";
   const [authMode, setAuthMode] = useState("login"); // "login" | "signup"
   const [loginForm, setLoginForm] = useState({
-    email: "admin@example.com",
-    password: "admin123",
+    email: "",
+    password: "",
   });
   const [signupForm, setSignupForm] = useState({
     name: "",
