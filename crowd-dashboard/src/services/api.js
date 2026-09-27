@@ -43,11 +43,11 @@ export async function getLocations() {
   return request("/locations");
 }
 
-export async function createLocation({ token, name, address }) {
+export async function createLocation({ token, name, address, organizationId }) {
   return request("/locations", {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: JSON.stringify({ name, address }),
+    body: JSON.stringify({ name, address, organizationId }),
   });
 }
 
